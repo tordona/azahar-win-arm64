@@ -1,0 +1,113 @@
+name: Release Distribution
+
+on:
+  workflow_call:
+    inputs:
+      github_tag:
+        type: string
+        required: true 
+
+jobs:
+  release-distro:
+    name: 'Release Distribution'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+    - name: Validate github_tag
+      run: |
+        if [ -z "${{ inputs.github_tag }}" ]; then
+          exit 1
+        fi
+    - name: 'Checkout'
+      uses: actions/checkout@v6
+    - name: 'Download Artifact'
+      uses: actions/download-artifact@v7
+      with:
+        merge-multiple: true
+        path: ./releases
+        pattern: 'windows-*'
+    - name: 'Add Architecture to File Name'
+      working-directory: ./releases
+      run: |
+        for file in *-windows*.exe *-windows*.7z; do
+            if [[ -f "$file" ]]; then
+                new_filename="${file//-windows/-win-arm64}"
+                mv "$file" "$new_filename"
+            fi
+        done
+    - name: 'Create Checksums'
+      working-directory: ./releases
+      run: |
+        for file in *.exe *.7z; do
+            if [[ -f "$file" ]]; then
+                sha256sum "$file" > "${file}.sha256"
+            fi
+        done
+    - name: 'Create Notes File'
+      working-directory: ./releases
+      run: |
+        releases_endpoint="https://github.com/azahar-emu/azahar/releases"
+        filename="azahar-unified-source-${{ inputs.github_tag }}.tar.xz"
+        url="$releases_endpoint/download/${{ inputs.github_tag }}/$filename"
+
+        echo "## Windows ARM64 Builds" >> notes.md
+        echo "" >> notes.md
+        echo "Automated builds based on official unified source" >> notes.md
+        echo "" >> notes.md
+        echo "Download installer or \`7z\` archive" >> notes.md
+        echo "" >> notes.md
+        echo "\`msvc\` = Visual Studio builds" >> notes.md
+        echo "\`msys2\` = MSYS2 builds" >> notes.md
+        echo "" >> notes.md
+        echo "**Requirements**" >> notes.md
+        echo "[Visual C++ Redistributable](https://aka.ms/vc14/vc_redist.arm64.exe)" >> notes.md
+        echo "" >> notes.md
+        echo "**Source Code**" >> notes.md
+        echo "[$filename]($url$filename)" >> notes.md
+        echo "" >> notes.md
+        echo "**Official Changelog**" >> notes.md
+        echo "$releases_endpoint/tag/${{ inputs.github_tag }}" >> notes.md
+        echo "" >> notes.md
+        echo "**SHA256 Checksums**" >> notes.md
+        echo "\`\`\`" >> notes.md
+        for checksum in *.sha256; do
+          if [[ -f "$checksum" ]]; then
+            echo "$(cat $checksum)" >> notes.md
+          fi
+        done
+        echo "\`\`\`" >> notes.md
+    - name: 'Check Build Release Exists'
+      id: 'check-build-release'
+      uses: insightsengineering/release-existence-action@v1.0.0
+      with:
+        release-tag: "${{ inputs.github_tag }}"
+    - name: 'Upload to Existing Package Release'
+      if: steps.check-build-release.outputs.release-exists == 'true'
+      working-directory: ./releases
+      run: |
+        gh release upload "${{ inputs.github_tag }}" \
+          '*.7z' \
+          '*.exe' \
+          '*.sha256' \
+          --clobber \
+    - name: 'Create New Package Release'
+      if: steps.check-build-release.outputs.release-exists == 'false'
+      working-directory: ./releases
+      run: |
+        gh release create "${{ inputs.github_tag }}" \
+          '*.7z' \
+          '*.exe' \
+          '*.sha256' \
+          --title 'Autobuild - Azahar ${{ inputs.github_tag }}' \
+          --notes-file notes.md \
+    - name: 'Delete Artifact'
+      uses: geekyeggo/delete-artifact@v5
+      with:
+          name: |
+              windows*

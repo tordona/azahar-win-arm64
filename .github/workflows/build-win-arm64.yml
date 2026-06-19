@@ -1,0 +1,233 @@
+name: Autobuild Azahar Windows ARM64
+on:
+  schedule:
+    - cron: '0 12 * * *' 
+  workflow_dispatch:
+    inputs:
+      github_tag:
+        description: 'Version tag to build'
+        required: false
+        type: string
+
+jobs:
+  build-tag:
+    name: Build Tag
+    runs-on: ubuntu-latest
+    outputs:
+      github_tag: ${{ steps.tag-name.outputs.github_tag }}
+      run: ${{ steps.build-run.outputs.run }}
+    steps:
+      - name: Validate input github_tag
+        if: ${{ inputs.github_tag != '' }}
+        uses: mukunku/tag-exists-action@v1.7.0
+        id: validate-github-tag
+        with: 
+          tag: ${{ inputs.github_tag }}
+          repo: azahar-emu/azahar
+      - name: Get Azahar Latest Tag
+        if: ${{ inputs.github_tag == '' }}
+        id: azahar-latest-tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          releases-only: true
+          repository: azahar-emu/azahar
+      - name: Get Local Latest Tag
+        if: ${{ inputs.github_tag == '' }}
+        id: local-latest-tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          releases-only: true
+          repository: ${{ github.repository }}
+      - name: Set Tag Name
+        id: tag-name
+        run: |
+          azahar_latest_tag="${{ steps.azahar-latest-tag.outputs.tag || inputs.github_tag }}"
+          echo "github_tag=$azahar_latest_tag" >> $GITHUB_OUTPUT
+      - name: Set Build Run
+        id: build-run
+        run: |
+          allow_build_run=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ $inputs.github_tag != "" && "${{ steps.validate-github-tag.outputs.exists }}" == "true" ]]; then
+              echo "Workflow Dispatched. Valid Github Release Tag"
+              allow_build_run=true
+            fi
+          fi
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            azahar_latest_tag="${{ steps.azahar-latest-tag.outputs.tag }}"
+            local_latest_tag="${{ steps.local-latest-tag.outputs.tag }}"
+            if [[ "$azahar_latest_tag" != "$local_latest_tag" ]]; then
+              echo "Scheduled Run. Latest Azahar Remote Tag ($azahar_latest_tag) is Greater than Local ($local_latest_tag)"
+              allow_build_run=true
+            fi
+          fi
+          echo "run=$allow_build_run" >> $GITHUB_OUTPUT
+  windows-arm:
+    name: Windows ARM64
+    needs: ['build-tag']
+    if: needs.build-tag.outputs.run == 'true'
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+          target: ["msys2", "msvc"]
+    defaults:
+      run:
+        shell: bash
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_COMPILERCHECK: content
+      CCACHE_SLOPPINESS: time_macros
+      OS: windows
+      TARGET: ${{ matrix.target }}
+    steps:
+      - name: Reference Name
+        id: 'reference-name'
+        shell: pwsh
+        run: |
+          $basename="azahar-unified-source-${{ needs.build-tag.outputs.github_tag }}"
+          echo "name=$basename" >> $env:GITHUB_OUTPUT
+      - name: Checkout Local Repo with Dependency Patches
+        if: ${{ matrix.target == 'msys2' }}
+        uses: actions/checkout@v4
+      - name: Download Unified Source
+        shell: pwsh
+        run: |
+          $github_tag = "${{ needs.build-tag.outputs.github_tag }}"
+          $name = "${{ steps.reference-name.outputs.name }}"
+          curl.exe -LO "https://github.com/azahar-emu/azahar/releases/download/$github_tag/$name.tar.xz"
+          7z x "$name.tar.xz"
+          7z x -y -snld "$name.tar"
+      - name: Download External Utlities
+        shell: pwsh
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          mkdir utilities
+          cd utilities
+          curl -LO https://github.com/tordona/win-arm64-binaries/releases/download/rcedit/rcedit-v2.0-win-arm64.7z
+          7z x *.7z
+      - name: Setup MSVC
+        if: ${{ matrix.target == 'msvc' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+      - name: Install Extra Tools (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        shell: pwsh
+        run: |
+          choco install ccache --x86 #aarch64 as defined in ccache package
+          choco install ptime wget
+      - name: Install Vulkan SDK (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        shell: pwsh
+        run: |
+          $version = "1.4.341.1"
+          wget "https://sdk.lunarg.com/sdk/download/$version/warm/vulkansdk-windows-ARM64-$version.exe" -O c:\a\_temp\vulkan.exe
+          c:\a\_temp\vulkan.exe --root c:\VulkanSDK --accept-licenses --default-answer --confirm-command install
+      - name: Prefetch QT6 ARM64 (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        shell: pwsh
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          $version = (Select-String -Path ".\CMakeLists.txt" -Pattern 'download_qt\(([\d\.]+)\)').Matches.Groups[1].Value
+          mkdir build\externals\qt
+          cd .\build\externals\qt
+          wget https://github.com/miurahr/aqtinstall/releases/download/v3.3.0/aqt.exe -O aqt.exe
+          .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia
+      - name: Build (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          # override to allow reuse of script without modifications
+          GITHUB_REF_NAME="${{ needs.build-tag.outputs.github_tag }}"
+          GITHUB_REF_TYPE="tag"
+          export VULKAN_SDK=/c/VulkanSDK
+          export Vulkan_INCLUDE_DIR=/c/VulkanSDK/Include
+          export EXTRA_CMAKE_FLAGS=(
+            -DENABLE_SSE42=OFF
+            -DENABLE_NATIVE_OPTIMIZATION=ON
+            -DENABLE_QT_UPDATE_CHECKER=OFF
+          )
+          sed -i 's/mkdir build/mkdir build -p/' ./.ci/windows.sh
+          sed -i 's/strip/# strip/' ./.ci/windows.sh
+          ./.ci/windows.sh
+      - name: Setup MSYS2
+        if: ${{ matrix.target == 'msys2' }}
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: clangarm64
+          update: true
+          cache: true
+          release: true
+          pacboy:
+            7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p
+            dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
+      - name: External Dependency Fixes
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          if [[ -f "./externals/cryptopp/src/hash/sha_simd.cpp" 
+              && -f "../externals/cryptopp/src/hash/sha_simd.cpp" ]]; then
+                # release 2126.0-alpha2 and greater
+                cp -r ../externals/cryptopp ./externals
+          fi
+      - name: Build (MSYS2)
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          # override to allow reuse of script without modifications
+          GITHUB_REF_NAME="${{ needs.build-tag.outputs.github_tag }}"
+          GITHUB_REF_TYPE="tag"
+          export EXTRA_CMAKE_FLAGS=(
+            -DENABLE_SSE42=OFF
+            -DENABLE_NATIVE_OPTIMIZATION=ON
+            -DENABLE_QT_UPDATE_CHECKER=OFF
+          )
+          ./.ci/windows.sh
+      - name: Resource strings
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          target="build/bundle/azahar.exe"
+          file_desc="Azahar 3DS emulator"
+          file_version=$(date '+%Y.%m.%d.0')
+          product_name="Azahar"
+          product_version="${{ needs.build-tag.outputs.github_tag }}"
+          ./utilities/rcedit.exe $target --set-version-string "FileDescription" "${file_desc}"
+          ./utilities/rcedit.exe $target --set-file-version "${file_version}"
+          ./utilities/rcedit.exe $target --set-version-string "ProductName" "${product_name}"
+          ./utilities/rcedit.exe $target --set-version-string "ProductVersion" "${product_version}"
+      - name: Copy license file
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          cp license.txt build/bundle/LICENSE
+      - name: Generate installer
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        shell: cmd
+        run: |
+          cd src\installer
+          "C:\Program Files (x86)\NSIS\makensis.exe" /DPRODUCT_VARIANT=${{ matrix.target }} /DPRODUCT_VERSION=${{ needs.build-tag.outputs.github_tag }} citra.nsi
+          mkdir ..\..\artifacts 2> NUL
+          move /y *.exe ..\..\artifacts\
+      - name: Pack
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          out_name=azahar-win-arm64-${{ matrix.target }}-${{ needs.build-tag.outputs.github_tag }}
+          cd build
+          mv bundle $out_name
+          7z a $out_name.7z $out_name
+          mv $out_name.7z ../artifacts/
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.OS }}-${{ env.TARGET }}
+          path: ./${{ steps.reference-name.outputs.name }}/artifacts/
+  make-release:
+    name: Make Release
+    needs: ['build-tag', 'windows-arm']
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      github_tag: ${{ needs.build-tag.outputs.github_tag }}
