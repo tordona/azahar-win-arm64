@@ -109,13 +109,14 @@ bool CPU_ProbeSHA1()
     if (oldHandler == SIG_ERR)
         return false;
 
+#ifndef __MINGW32__
     volatile sigset_t oldMask;
     if (sigprocmask(0, NULLPTR, (sigset_t*)&oldMask))
     {
         signal(SIGILL, oldHandler);
         return false;
     }
-
+#endif
     if (setjmp(s_jmpSIGILL))
         result = false;
     else
@@ -134,7 +135,9 @@ bool CPU_ProbeSHA1()
         result = !!(vgetq_lane_u32(r1,0) | vgetq_lane_u32(r2,1) | vgetq_lane_u32(r3,2) | vgetq_lane_u32(r4,3) | vgetq_lane_u32(r5,0));
     }
 
+#ifndef __MINGW32__
     sigprocmask(SIG_SETMASK, (sigset_t*)&oldMask, NULLPTR);
+#endif
     signal(SIGILL, oldHandler);
     return result;
 # endif
@@ -178,14 +181,14 @@ bool CPU_ProbeSHA256()
     volatile SigHandler oldHandler = signal(SIGILL, SigIllHandler);
     if (oldHandler == SIG_ERR)
         return false;
-
+#ifndef __MINGW32__
     volatile sigset_t oldMask;
     if (sigprocmask(0, NULLPTR, (sigset_t*)&oldMask))
     {
         signal(SIGILL, oldHandler);
         return false;
     }
-
+#endif
     if (setjmp(s_jmpSIGILL))
         result = false;
     else
@@ -203,7 +206,9 @@ bool CPU_ProbeSHA256()
         result = !!(vgetq_lane_u32(r1,0) | vgetq_lane_u32(r2,1) | vgetq_lane_u32(r3,2) | vgetq_lane_u32(r4,3));
     }
 
+#ifndef __MINGW32__
     sigprocmask(SIG_SETMASK, (sigset_t*)&oldMask, NULLPTR);
+#endif
     signal(SIGILL, oldHandler);
     return result;
 # endif

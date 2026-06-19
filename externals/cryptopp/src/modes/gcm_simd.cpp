@@ -112,14 +112,14 @@ bool CPU_ProbePMULL()
     volatile SigHandler oldHandler = signal(SIGILL, SigIllHandler);
     if (oldHandler == SIG_ERR)
         return false;
-
+#ifndef __MINGW32__
     volatile sigset_t oldMask;
     if (sigprocmask(0, NULLPTR, (sigset_t*)&oldMask))
     {
         signal(SIGILL, oldHandler);
         return false;
     }
-
+#endif
     if (setjmp(s_jmpSIGILL))
         result = false;
     else
@@ -143,8 +143,9 @@ bool CPU_ProbePMULL()
                     vgetq_lane_u64(r2,0) == 0x6c006c006c006c00 &&
                     vgetq_lane_u64(r2,1) == 0x6c006c006c006c00);
     }
-
+#ifndef __MINGW32__
     sigprocmask(SIG_SETMASK, (sigset_t*)&oldMask, NULLPTR);
+#endif
     signal(SIGILL, oldHandler);
     return result;
 # endif

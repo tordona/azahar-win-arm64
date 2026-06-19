@@ -90,12 +90,14 @@ bool CPU_ProbeCRC32()
     if (oldHandler == SIG_ERR)
         return false;
 
+#ifndef __MINGW32__
     volatile sigset_t oldMask;
     if (sigprocmask(0, NULLPTR, (sigset_t*)&oldMask))
     {
         signal(SIGILL, oldHandler);
         return false;
     }
+#endif
 
     if (setjmp(s_jmpSIGILL))
         result = false;
@@ -111,7 +113,9 @@ bool CPU_ProbeCRC32()
         result = !!w;
     }
 
+#ifndef __MINGW32__
     sigprocmask(SIG_SETMASK, (sigset_t*)&oldMask, NULLPTR);
+#endif
     signal(SIGILL, oldHandler);
     return result;
 # endif
