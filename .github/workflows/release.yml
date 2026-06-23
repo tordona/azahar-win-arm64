@@ -100,12 +100,20 @@ jobs:
       if: steps.check-build-release.outputs.release-exists == 'false'
       working-directory: ./releases
       run: |
+        shopt -s nocasematch                
+        PRERELEASE_FLAG=""
+        if [[ "${{ inputs.github_tag }}" == *"alpha"* || "${{ inputs.github_tag }}" == *"beta"* ]]; then
+          PRERELEASE_FLAG="--prerelease"
+        fi
+        shopt -u nocasematch
+
         gh release create "${{ inputs.github_tag }}" \
           '*.7z' \
           '*.exe' \
           '*.sha256' \
           --title 'Autobuild - Azahar ${{ inputs.github_tag }}' \
           --notes-file notes.md \
+          $PRERELEASE_FLAG
     - name: 'Delete Artifact'
       uses: geekyeggo/delete-artifact@v5
       with:
