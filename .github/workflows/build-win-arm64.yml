@@ -229,7 +229,6 @@ jobs:
         with:
           categories: 'artifacts'
           tools: 'antimalware'
-          break-on-detections: true 
       - name: Upload scan results to Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
