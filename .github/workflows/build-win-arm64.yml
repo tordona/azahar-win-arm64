@@ -80,6 +80,9 @@ jobs:
       CCACHE_SLOPPINESS: time_macros
       OS: windows
       TARGET: ${{ matrix.target }}
+    permissions:
+      actions: read
+      security-events: write
     steps:
       - name: Reference Name
         id: 'reference-name'
@@ -220,6 +223,18 @@ jobs:
           mv bundle $out_name
           7z a $out_name.7z $out_name
           mv $out_name.7z ../artifacts/
+      - name: Run Microsoft Security DevOps - Scan Artifacts 
+        uses: microsoft/security-devops-action@latest
+        id: msdo
+        with:
+          categories: 'artifacts'
+          tools: 'antimalware'
+          break-on-detections: true 
+      - name: Upload scan results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.msdo.outputs.sarifFile }}
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
