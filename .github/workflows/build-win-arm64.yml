@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-          target: ["msys2", "msvc"]
+        target: ["msys2", "msvc"]
     defaults:
       run:
         shell: bash
@@ -136,7 +136,7 @@ jobs:
           mkdir build\externals\qt
           cd .\build\externals\qt
           wget https://github.com/miurahr/aqtinstall/releases/download/v3.3.0/aqt.exe -O aqt.exe
-          .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia
+          .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia --base https://download.qt.io
       - name: Build (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         working-directory: ./${{ steps.reference-name.outputs.name }}
@@ -175,8 +175,6 @@ jobs:
                 # release 2126.0-alpha2 and greater
                 cp -r ../externals/cryptopp ./externals
           fi
-          # temp revert to known working FMT
-          pacman -U https://mirror.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-fmt-12.1.0-1-any.pkg.tar.zst --noconfirm --overwrite '*'
       - name: Build (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
