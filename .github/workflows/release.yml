@@ -102,7 +102,7 @@ jobs:
       run: |
         shopt -s nocasematch                
         PRERELEASE_FLAG=""
-        if [[ "${{ inputs.github_tag }}" == *"alpha"* || "${{ inputs.github_tag }}" == *"beta"* ]]; then
+        if [[ "${{ inputs.github_tag }}" == *"alpha"* || "${{ inputs.github_tag }}" == *"beta"* || "${{ inputs.github_tag }}" == *"release candidate"* ]]; then
           PRERELEASE_FLAG="--prerelease"
         fi
         shopt -u nocasematch
