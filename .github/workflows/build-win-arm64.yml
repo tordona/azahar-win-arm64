@@ -13,6 +13,8 @@ jobs:
   build-tag:
     name: Build Tag
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     outputs:
       github_tag: ${{ steps.tag-name.outputs.github_tag }}
       run: ${{ steps.build-run.outputs.run }}
@@ -27,17 +29,19 @@ jobs:
       - name: Get Azahar Latest Tag
         if: ${{ inputs.github_tag == '' }}
         id: azahar-latest-tag
-        uses: oprypin/find-latest-tag@v1
-        with:
-          releases-only: true
-          repository: azahar-emu/azahar
+        run: |
+          repo="azahar-emu/azahar"
+          latest_tag_name=$(gh release list -R $repo --limit 1 --json tagName --jq '.[0].tagName')
+          echo "latest_tag_name: $latest_tag_name"
+          echo "tag=$latest_tag_name" >> $GITHUB_OUTPUT
       - name: Get Local Latest Tag
         if: ${{ inputs.github_tag == '' }}
         id: local-latest-tag
-        uses: oprypin/find-latest-tag@v1
-        with:
-          releases-only: true
-          repository: ${{ github.repository }}
+        run: |
+          repo="tordona/azahar-win-arm64"
+          latest_tag_name=$(gh release list -R $repo --limit 1 --json tagName --jq '.[0].tagName')
+          echo "latest_tag_name: $latest_tag_name"
+          echo "tag=$latest_tag_name" >> $GITHUB_OUTPUT
       - name: Set Tag Name
         id: tag-name
         run: |
@@ -57,7 +61,7 @@ jobs:
             azahar_latest_tag="${{ steps.azahar-latest-tag.outputs.tag }}"
             local_latest_tag="${{ steps.local-latest-tag.outputs.tag }}"
             if [[ "$azahar_latest_tag" != "$local_latest_tag" ]]; then
-              echo "Scheduled Run. Latest Azahar Remote Tag ($azahar_latest_tag) is Greater than Local ($local_latest_tag)"
+              echo "Scheduled Run. Latest Azahar Remote Tag ($azahar_latest_tag) is Not Equal or Greater than Local ($local_latest_tag)"
               allow_build_run=true
             fi
           fi
