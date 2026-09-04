@@ -70,7 +70,7 @@ jobs:
     name: Windows ARM64
     needs: ['build-tag']
     if: needs.build-tag.outputs.run == 'true'
-    runs-on: windows-11-arm
+    runs-on: windows-11-vs2026-arm
     strategy:
       fail-fast: false
       matrix:
