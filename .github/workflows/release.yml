@@ -5,7 +5,10 @@ on:
     inputs:
       github_tag:
         type: string
-        required: true 
+        required: true
+      draft:
+        type: string
+        required: true
 
 jobs:
   release-distro:
@@ -92,28 +95,31 @@ jobs:
       working-directory: ./releases
       run: |
         gh release upload "${{ inputs.github_tag }}" \
-          '*.7z' \
-          '*.exe' \
-          '*.sha256' \
+          *.7z \
+          *.exe \
+          *.sha256 \
           --clobber \
     - name: 'Create New Package Release'
       if: steps.check-build-release.outputs.release-exists == 'false'
       working-directory: ./releases
       run: |
         shopt -s nocasematch                
-        PRERELEASE_FLAG=""
+        FLAGS=""
         if [[ "${{ inputs.github_tag }}" == *"alpha"* || "${{ inputs.github_tag }}" == *"beta"* || "${{ inputs.github_tag }}" == *"-rc"* ]]; then
-          PRERELEASE_FLAG="--prerelease"
+          FLAGS+=" --prerelease"
+        fi
+        if [[ "${{ inputs.draft }}" == "true" ]]; then
+          FLAGS+=" --draft"
         fi
         shopt -u nocasematch
 
         gh release create "${{ inputs.github_tag }}" \
-          '*.7z' \
-          '*.exe' \
-          '*.sha256' \
+          *.7z \
+          *.exe \
+          *.sha256 \
           --title 'Autobuild - Azahar ${{ inputs.github_tag }}' \
           --notes-file notes.md \
-          $PRERELEASE_FLAG
+          $FLAGS
     - name: 'Delete Artifact'
       uses: geekyeggo/delete-artifact@v5
       with:
