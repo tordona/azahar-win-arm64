@@ -17,6 +17,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     outputs:
       github_tag: ${{ steps.tag-name.outputs.github_tag }}
+      draft: ${{ steps.tag-name.outputs.draft }}
       run: ${{ steps.build-run.outputs.run }}
     steps:
       - name: Validate input github_tag
@@ -51,10 +52,12 @@ jobs:
         id: build-run
         run: |
           allow_build_run=false
+          is_draft=false
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             if [[ $inputs.github_tag != "" && "${{ steps.validate-github-tag.outputs.exists }}" == "true" ]]; then
               echo "Workflow Dispatched. Valid Github Release Tag"
               allow_build_run=true
+              is_draft=true
             fi
           fi
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
@@ -66,6 +69,7 @@ jobs:
             fi
           fi
           echo "run=$allow_build_run" >> $GITHUB_OUTPUT
+          echo "draft=$is_draft" >> $GITHUB_OUTPUT
   windows-arm:
     name: Windows ARM64
     needs: ['build-tag']
@@ -249,3 +253,4 @@ jobs:
       contents: write
     with:
       github_tag: ${{ needs.build-tag.outputs.github_tag }}
+      draft: ${{ needs.build-tag.outputs.draft }}
