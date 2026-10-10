@@ -159,9 +159,17 @@ jobs:
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
-          sed -i 's/mkdir build/mkdir build -p/' ./.ci/windows.sh
-          sed -i 's/strip/# strip/' ./.ci/windows.sh
-          ./.ci/windows.sh
+          if [ -f "./.ci/windows.sh" ]; then
+            BUILD_SCRIPT="./.ci/windows.sh"
+          elif [ -f "./.ci/win-msvc.sh" ]; then
+            BUILD_SCRIPT="./.ci/win-msvc.sh"
+          else
+            echo "Error: No matching build script found."
+            exit 1
+          fi
+          sed -i 's/mkdir build/mkdir build -p/' "$BUILD_SCRIPT"
+          sed -i 's/strip/# strip/' "$BUILD_SCRIPT"
+          "$BUILD_SCRIPT"
       - name: Setup MSYS2
         if: ${{ matrix.target == 'msys2' }}
         uses: msys2/setup-msys2@v2
