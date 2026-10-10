@@ -145,6 +145,18 @@ jobs:
           cd .\build\externals\qt
           wget https://github.com/miurahr/aqtinstall/releases/download/v3.3.0/aqt.exe -O aqt.exe
           .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia --base https://download.qt.io
+      - name: Determine Build Script
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        shell: bash
+        run: |
+          if [ -f "./.ci/windows.sh" ]; then
+            echo "BUILD_SCRIPT=./.ci/windows.sh" >> "$GITHUB_ENV"
+          elif [ -f "./.ci/win-msvc.sh" ]; then
+            echo "BUILD_SCRIPT=./.ci/win-msvc.sh" >> "$GITHUB_ENV"
+          else
+            echo "Error: No matching build script found."
+            exit 1
+          fi
       - name: Build (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         working-directory: ./${{ steps.reference-name.outputs.name }}
@@ -159,14 +171,6 @@ jobs:
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
-          if [ -f "./.ci/windows.sh" ]; then
-            BUILD_SCRIPT="./.ci/windows.sh"
-          elif [ -f "./.ci/win-msvc.sh" ]; then
-            BUILD_SCRIPT="./.ci/win-msvc.sh"
-          else
-            echo "Error: No matching build script found."
-            exit 1
-          fi
           sed -i 's/mkdir build/mkdir build -p/' "$BUILD_SCRIPT"
           sed -i 's/strip/# strip/' "$BUILD_SCRIPT"
           "$BUILD_SCRIPT"
@@ -204,7 +208,7 @@ jobs:
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
-          ./.ci/windows.sh
+          "$BUILD_SCRIPT"
       - name: Resource strings
         working-directory: ./${{ steps.reference-name.outputs.name }}
         run: |
