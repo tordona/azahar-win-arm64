@@ -140,12 +140,11 @@ jobs:
         shell: pwsh
         run: |
           # needed to force vcpkg to build only the arm64 release configuration
-          New-Item -ItemType Directory -Force -Path "c:\custom-triplets"
-          @('include("c:/vcpkg/triplets/arm64-windows.cmake")', 'set(VCPKG_BUILD_TYPE release)') | Out-File -FilePath "c:\custom-triplets\arm64-windows-release.cmake" -Encoding utf8
+          Add-Content -Path "C:\vcpkg\triplets\arm64-windows.cmake" -Value "`nset(VCPKG_BUILD_TYPE release)"
       - name: Build FFmpeg (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         run: |
-          vcpkg install ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows-release --overlay-triplets=c:\custom-triplets
+          vcpkg install ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows
       - name: Install Vulkan SDK (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         shell: pwsh
@@ -189,7 +188,7 @@ jobs:
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
-          sed -i 's/-DVCPKG_TARGET_TRIPLET=x64-windows-release \\/-DVCPKG_TARGET_TRIPLET=arm64-windows-release \\\n    -DVCPKG_OVERLAY_TRIPLETS=c:\/custom-triplets \\/' "$BUILD_SCRIPT"
+          sed -i 's/-DVCPKG_TARGET_TRIPLET=x64-windows-release/-DVCPKG_TARGET_TRIPLET=arm64-windows/g' "$BUILD_SCRIPT"
           sed -i 's/mkdir build/mkdir build -p/' "$BUILD_SCRIPT"
           sed -i 's/strip/# strip/' "$BUILD_SCRIPT"
           "$BUILD_SCRIPT"
