@@ -214,7 +214,7 @@ jobs:
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
-          sed -i '\#-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake#d' '$BUILD_SCRIPT'
+          sed -i '\#-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake#d' "$BUILD_SCRIPT"
           sed -i '\#-DVCPKG_TARGET_TRIPLET=x64-windows-release#d' "$BUILD_SCRIPT"
           "$BUILD_SCRIPT"
       - name: Resource strings
