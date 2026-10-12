@@ -138,7 +138,7 @@ jobs:
       - name: Build FFmpeg (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         run: vcpkg install
-          ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows-release
+          ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows
       - name: Install Vulkan SDK (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         shell: pwsh
