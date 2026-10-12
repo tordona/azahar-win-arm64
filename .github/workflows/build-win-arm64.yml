@@ -141,11 +141,11 @@ jobs:
         run: |
           # needed to force vcpkg to build only the arm64 release configuration
           New-Item -ItemType Directory -Force -Path "c:\custom-triplets"
-          @('include("${VCPKG_ROOT}/triplets/arm64-windows.cmake")', 'set(VCPKG_BUILD_TYPE release)') | Out-File -FilePath "c:\custom-triplets\arm64-windows-release.cmake" -Encoding utf8
+          @('include("c:/vcpkg/triplets/arm64-windows.cmake")', 'set(VCPKG_BUILD_TYPE release)') | Out-File -FilePath "c:\custom-triplets\arm64-windows-release.cmake" -Encoding utf8
       - name: Build FFmpeg (MSVC)
         if: ${{ matrix.target == 'msvc' }}
-        run: vcpkg install
-          ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows-release --overlay-triplets=c:\custom-triplets
+        run: |
+          vcpkg install ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows-release --overlay-triplets=c:\custom-triplets
       - name: Install Vulkan SDK (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         shell: pwsh
