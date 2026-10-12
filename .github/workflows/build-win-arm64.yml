@@ -195,6 +195,11 @@ jobs:
                 # release 2126.0-alpha2 and greater
                 cp -r ../externals/cryptopp ./externals
           fi
+      - name: Fetch and Install FFmpeg (MSYS2)
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        run: |
+          pacman --disable-download-timeout --overwrite '*' --noconfirm https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-ffmpeg-7.1-6-any.pkg.tar.zst
       - name: Build (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
@@ -203,11 +208,14 @@ jobs:
           # override to allow reuse of script without modifications
           GITHUB_REF_NAME="${{ needs.build-tag.outputs.github_tag }}"
           GITHUB_REF_TYPE="tag"
+          export CXXFLAGS="-include exception -include vector -include cstdint"
           export EXTRA_CMAKE_FLAGS=(
             -DENABLE_SSE42=OFF
             -DENABLE_NATIVE_OPTIMIZATION=ON
             -DENABLE_QT_UPDATE_CHECKER=OFF
           )
+          sed -i '\#-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake#d' '$BUILD_SCRIPT'
+          sed -i '\#-DVCPKG_TARGET_TRIPLET=x64-windows-release#d' "$BUILD_SCRIPT"
           "$BUILD_SCRIPT"
       - name: Resource strings
         working-directory: ./${{ steps.reference-name.outputs.name }}
