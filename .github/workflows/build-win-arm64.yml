@@ -195,6 +195,10 @@ jobs:
                 # release 2126.0-alpha2 and greater
                 cp -r ../externals/cryptopp ./externals
           fi
+          if [[ -f "./externals/libressl/crypto/crypto_internal.h" ]]; then
+                # release 2127.0-alpha1 and greater
+                cp -r ../externals/libressl ./externals
+          fi
       - name: Fetch and Install FFmpeg (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
