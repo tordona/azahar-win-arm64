@@ -128,6 +128,17 @@ jobs:
         run: |
           choco install ccache --x86 #aarch64 as defined in ccache package
           choco install ptime wget
+      - name: Checkout vcpkg for FFmpeg 7.1.2 (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        shell: pwsh
+        run: |
+          cd C:\vcpkg
+          git checkout 5087d22fd76fe1844ca492866055dea3c34e7f52
+          .\bootstrap-vcpkg.bat -disableMetrics
+      - name: Build FFmpeg (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        run: vcpkg install
+          ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows-release
       - name: Install Vulkan SDK (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         shell: pwsh
