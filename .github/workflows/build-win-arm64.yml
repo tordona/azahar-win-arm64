@@ -135,7 +135,7 @@ jobs:
           cd C:\vcpkg
           git checkout 5087d22fd76fe1844ca492866055dea3c34e7f52
           .\bootstrap-vcpkg.bat -disableMetrics
-      - name: Create Custom ARM64 Release Triplet (MSVC)
+      - name: Force vcpkg ARM64 Build Type (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         shell: pwsh
         run: |
@@ -203,6 +203,28 @@ jobs:
           pacboy:
             7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p
             dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
+      - name: Fetch and Install FFmpeg (MSYS2)
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        run: |
+          BASE_URL="https://repo.msys2.org/mingw/clangarm64"
+          ARCH="mingw-w64-clang-aarch64"
+          PACKAGES=(
+              "ffmpeg-7.1-6-any.pkg.tar.zst"
+              "libbluray-1.3.4-1-any.pkg.tar.zst"
+              "libdovi-3.3.1-2-any.pkg.tar.zst"
+              "libplacebo-7.349.0-1-any.pkg.tar.zst"
+              "libtheora-1.1.1-7-any.pkg.tar.zst"
+              "libx264-0.164.r3161.a354f11-3-any.pkg.tar.zst"
+              "libxml2-2.14.5-2-any.pkg.tar.zst"
+              "shaderc-2024.4-1-any.pkg.tar.zst"
+              "spirv-cross-1~1.4.304.1-1-any.pkg.tar.zst"
+              "svt-av1-2.3.0-2-any.pkg.tar.zst"
+              "x265-4.1-2-any.pkg.tar.zst"
+          )
+          for pkg in "${PACKAGES[@]}"; do
+              pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
+          done
       - name: External Dependency Fixes
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
@@ -217,11 +239,6 @@ jobs:
                 # release 2127.0-alpha1 and greater
                 cp -r ../externals/libressl ./externals
           fi
-      - name: Fetch and Install FFmpeg (MSYS2)
-        if: ${{ matrix.target == 'msys2' }}
-        shell: msys2 {0}
-        run: |
-          pacman -U --disable-download-timeout --overwrite '*' --noconfirm https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-ffmpeg-7.1-6-any.pkg.tar.zst
       - name: Build (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
