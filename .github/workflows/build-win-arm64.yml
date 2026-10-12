@@ -199,7 +199,7 @@ jobs:
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
         run: |
-          pacman --disable-download-timeout --overwrite '*' --noconfirm https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-ffmpeg-7.1-6-any.pkg.tar.zst
+          pacman -U --disable-download-timeout --overwrite '*' --noconfirm https://repo.msys2.org/mingw/clangarm64/mingw-w64-clang-aarch64-ffmpeg-7.1-6-any.pkg.tar.zst
       - name: Build (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
