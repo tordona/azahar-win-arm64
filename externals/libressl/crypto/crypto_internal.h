@@ -22,6 +22,27 @@
 #ifndef HEADER_CRYPTO_INTERNAL_H
 #define HEADER_CRYPTO_INTERNAL_H
 
+#if defined(_WIN32) || defined(__MSYS__)
+#include <stdlib.h>
+#ifndef htobe64
+#define htobe64(x) __builtin_bswap64(x)
+#endif
+#ifndef htobe16
+#define htobe16(x) __builtin_bswap16(x)
+#define htobe32(x) __builtin_bswap32(x)
+#define htobe64(x) __builtin_bswap64(x)
+#define be16toh(x) __builtin_bswap16(x)
+#define be32toh(x) __builtin_bswap32(x)
+#define be64toh(x) __builtin_bswap64(x)
+#define htole16(x) (x)
+#define htole32(x) (x)
+#define htole64(x) (x)
+#define le16toh(x) (x)
+#define le32toh(x) (x)
+#define le64toh(x) (x)
+#endif
+#endif
+
 /*
  * crypto_store_htobe32() stores a 32 bit unsigned host endian value
  * as a 32 bit unsigned big endian value, at the specified location in
