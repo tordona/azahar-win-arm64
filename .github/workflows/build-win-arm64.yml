@@ -257,6 +257,39 @@ jobs:
           sed -i '\#-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake#d' "$BUILD_SCRIPT"
           sed -i '\#-DVCPKG_TARGET_TRIPLET=x64-windows-release#d' "$BUILD_SCRIPT"
           "$BUILD_SCRIPT"
+      - name: Check Binary Bundled Dependencies
+        shell: pwsh
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          $binary = ".\build\bundle\azahar.exe"
+          if ([string]::IsNullOrWhiteSpace($binary) -or -not (Test-Path $binary -PathType Leaf)) {
+              Write-Host "Error: The binary '$binary' does not exist."
+              exit 1
+          }
+          $binaryDir = Split-Path -Path $binary -Parent
+          if ([string]::IsNullOrWhiteSpace($binaryDir)) { $binaryDir = "." }
+          $qwindows = Get-ChildItem -Path $binaryDir -Filter "qwindows.dll" -Recurse -ErrorAction SilentlyContinue
+          if (-not $qwindows) {
+              Write-Host "Error: qwindows.dll was not found."
+              exit 1
+          }
+          $werRegPath = "HKCU:\Software\Microsoft\Windows\Windows Error Reporting"
+          if (-not (Test-Path $werRegPath)) {
+              New-Item -Path $werRegPath -Force | Out-Null
+          }
+          Set-ItemProperty -Path $werRegPath -Name "DontShowUI" -Value 1 -Type DWord -Force
+          $process = Start-Process -FilePath $binary -NoNewWindow -PassThru
+          $timeoutMs = 15000 # 15 seconds
+          $exited = $process.WaitForExit($timeoutMs)
+          if (-not $exited) {
+              Stop-Process -Id $process.Id -Force
+              exit 0
+          }
+          $exitCode = $process.ExitCode
+          if ($exitCode -eq -1073741515 -or $exitCode -eq 3221225781 -or $exitCode -ne 0) {
+              Write-Host "Error: Binary exited early."
+              exit 1
+          }
       - name: Resource Strings
         working-directory: ./${{ steps.reference-name.outputs.name }}
         run: |
