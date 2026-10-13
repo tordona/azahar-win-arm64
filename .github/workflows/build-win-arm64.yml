@@ -162,7 +162,7 @@ jobs:
           cd .\build\externals\qt
           wget https://github.com/miurahr/aqtinstall/releases/download/v3.3.0/aqt.exe -O aqt.exe
           .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia --base https://download.qt.io
-          sed -i 's/set(host_arch_path "msvc2022_64")/set(host_arch_path "msvc2022_arm64")/g' ./CMakeModules/DownloadExternals.cmake
+          (Get-Content .\CMakeModules\DownloadExternals.cmake) -replace 'set\(host_arch_path "msvc2022_64"\)', 'set(host_arch_path "msvc2022_arm64")' | Set-Content .\CMakeModules\DownloadExternals.cmake
       - name: Determine Build Script
         working-directory: ./${{ steps.reference-name.outputs.name }}
         shell: bash
