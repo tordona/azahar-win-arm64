@@ -72,7 +72,7 @@ jobs:
         echo "[Visual C++ Redistributable](https://aka.ms/vc14/vc_redist.arm64.exe)" >> notes.md
         echo "" >> notes.md
         echo "**Source Code**" >> notes.md
-        echo "[$filename]($url$filename)" >> notes.md
+        echo "[$filename]($url)" >> notes.md
         echo "" >> notes.md
         echo "**Official Changelog**" >> notes.md
         echo "$releases_endpoint/tag/${{ inputs.github_tag }}" >> notes.md
