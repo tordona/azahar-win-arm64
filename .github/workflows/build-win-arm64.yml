@@ -233,8 +233,8 @@ jobs:
         shell: msys2 {0}
         run: |
           pacman -S --noconfirm pactoys
-          pacboy -S --noconfirm 7zip:p toolchain:p cmake:p ccache:p dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p  \
-            jack2:p portaudio:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p 
+          pacboy -S --noconfirm 7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p \
+            qt6-translations:p dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
       - name: External Dependency Fixes
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
