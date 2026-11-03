@@ -201,31 +201,40 @@ jobs:
           update: true
           cache: true
           release: true
-          pacboy:
-            7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p
-            dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
       - name: Install FFmpeg (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
         run: |
           BASE_URL="https://repo.msys2.org/mingw/clangarm64"
           ARCH="mingw-w64-clang-aarch64"
+          NODEPS=(
+            "x265-4.1-2-any.pkg.tar.zst"
+            "shaderc-2024.4-1-any.pkg.tar.zst"
+            "spirv-cross-1~1.4.304.1-1-any.pkg.tar.zst"
+          )
+          for pkg in "${NODEPS[@]}"; do
+            pacman -Udd --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
+          done
           PACKAGES=(
-              "ffmpeg-7.1-6-any.pkg.tar.zst"
-              "libbluray-1.3.4-1-any.pkg.tar.zst"
-              "libdovi-3.3.1-3-any.pkg.tar.zst"
-              "libplacebo-7.349.0-2-any.pkg.tar.zst"
-              "libtheora-1.1.1-7-any.pkg.tar.zst"
-              "libx264-0.164.r3161.a354f11-3-any.pkg.tar.zst"
-              "libxml2-2.14.5-2-any.pkg.tar.zst"
-              "shaderc-2024.4-1-any.pkg.tar.zst"
-              "spirv-cross-1~1.4.304.1-1-any.pkg.tar.zst"
-              "svt-av1-2.3.0-2-any.pkg.tar.zst"
-              "x265-4.1-2-any.pkg.tar.zst"
+            "libbluray-1.3.4-1-any.pkg.tar.zst"
+            "libdovi-3.3.1-3-any.pkg.tar.zst"
+            "libplacebo-7.349.0-2-any.pkg.tar.zst"
+            "libtheora-1.1.1-7-any.pkg.tar.zst"
+            "libx264-0.164.r3161.a354f11-3-any.pkg.tar.zst"
+            "libxml2-2.14.5-2-any.pkg.tar.zst"
+            "svt-av1-2.3.0-2-any.pkg.tar.zst"
+            "ffmpeg-7.1.1-1-any.pkg.tar.zst"
           )
           for pkg in "${PACKAGES[@]}"; do
-              pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
+            pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
           done
+      - name: Install Packages (MSYS2)
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        run: |
+          pacman -S --noconfirm pactoys
+          pacboy -S --noconfirm 7zip:p toolchain:p cmake:p ccache:p dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p  \
+            jack2:p portaudio:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p 
       - name: External Dependency Fixes
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
