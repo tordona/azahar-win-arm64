@@ -20,15 +20,22 @@ jobs:
       draft: ${{ steps.tag-name.outputs.draft }}
       run: ${{ steps.build-run.outputs.run }}
     steps:
+      - name: Trim whitespace from input
+        id: trimmed
+        env:
+          RAW_INPUT: ${{ github.event.inputs.github_tag }}
+        run: |
+          CLEAN_INPUT=$(echo "$RAW_INPUT" | xargs)
+          echo "azahar_tag=$CLEAN_INPUT" >> "$GITHUB_OUTPUT"
       - name: Validate input github_tag
-        if: ${{ inputs.github_tag != '' }}
+        if: ${{ steps.trimmed.outputs.azahar_tag != '' }}
         uses: mukunku/tag-exists-action@v1.7.0
         id: validate-github-tag
         with: 
-          tag: ${{ inputs.github_tag }}
+          tag: ${{ steps.trimmed.outputs.azahar_tag }}
           repo: azahar-emu/azahar
       - name: Get Azahar Latest Tag
-        if: ${{ inputs.github_tag == '' }}
+        if: ${{ steps.trimmed.outputs.azahar_tag == '' }}
         id: azahar-latest-tag
         run: |
           repo="azahar-emu/azahar"
@@ -36,7 +43,7 @@ jobs:
           echo "latest_tag_name: $latest_tag_name"
           echo "tag=$latest_tag_name" >> $GITHUB_OUTPUT
       - name: Get Local Latest Tag
-        if: ${{ inputs.github_tag == '' }}
+        if: ${{ steps.trimmed.outputs.azahar_tag == '' }}
         id: local-latest-tag
         run: |
           repo="tordona/azahar-win-arm64"
@@ -46,7 +53,7 @@ jobs:
       - name: Set Tag Name
         id: tag-name
         run: |
-          azahar_latest_tag="${{ steps.azahar-latest-tag.outputs.tag || inputs.github_tag }}"
+          azahar_latest_tag="${{ steps.azahar-latest-tag.outputs.tag || steps.trimmed.outputs.azahar_tag }}"
           echo "github_tag=$azahar_latest_tag" >> $GITHUB_OUTPUT
       - name: Set Build Run
         id: build-run
@@ -54,7 +61,7 @@ jobs:
           allow_build_run=false
           is_draft=false
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ $inputs.github_tag != "" && "${{ steps.validate-github-tag.outputs.exists }}" == "true" ]]; then
+            if [[ $steps.trimmed.outputs.azahar_tag != "" && "${{ steps.validate-github-tag.outputs.exists }}" == "true" ]]; then
               echo "Workflow Dispatched. Valid Github Release Tag"
               allow_build_run=true
               is_draft=true
@@ -201,40 +208,48 @@ jobs:
           update: true
           cache: true
           release: true
+          pacboy:
+            7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p qt6-translations:p
+            dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
+      - name: Fetch Prebuilt FFmpeg (MSYS2)
+        if: ${{ matrix.target == 'msys2' }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 4
+          retry_wait_seconds: 10
+          retry_on: error
+          command: |
+            mkdir -p packages
+            rm -rf ./packages/*
+            gh release download "azahar" --pattern "*.zst" --pattern "*.sig" -D "./packages" --clobber -R tordona/mingw-packages
       - name: Install FFmpeg (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
+        working-directory: ./packages
         shell: msys2 {0}
         run: |
-          BASE_URL="https://repo.msys2.org/mingw/clangarm64"
           ARCH="mingw-w64-clang-aarch64"
           NODEPS=(
-            "x265-4.1-2-any.pkg.tar.zst"
-            "shaderc-2024.4-1-any.pkg.tar.zst"
-            "spirv-cross-1~1.4.304.1-1-any.pkg.tar.zst"
+            "x265-4.1-2"
+            "shaderc-2024.4-1"
+            "spirv-cross-1.1.4.304.1-1"
           )
-          for pkg in "${NODEPS[@]}"; do
-            pacman -Udd --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
+          for PKG in "${NODEPS[@]}"; do
+            pacman -Udd --disable-download-timeout --overwrite '*' --noconfirm "$ARCH-$PKG-any.pkg.tar.zst"
           done
           PACKAGES=(
-            "libbluray-1.3.4-1-any.pkg.tar.zst"
-            "libdovi-3.3.1-3-any.pkg.tar.zst"
-            "libplacebo-7.349.0-2-any.pkg.tar.zst"
-            "libtheora-1.1.1-7-any.pkg.tar.zst"
-            "libx264-0.164.r3161.a354f11-3-any.pkg.tar.zst"
-            "libxml2-2.14.5-2-any.pkg.tar.zst"
-            "svt-av1-2.3.0-2-any.pkg.tar.zst"
-            "ffmpeg-7.1.1-1-any.pkg.tar.zst"
+            "libbluray-1.3.4-1"
+            "libdovi-3.3.1-3"
+            "libplacebo-7.349.0-2"
+            "libtheora-1.1.1-7"
+            "libx264-0.164.r3161.a354f11-3"
+            "libxml2-2.14.5-2"
+            "svt-av1-2.3.0-2"
+            "ffmpeg-7.1.1-1"
           )
           for pkg in "${PACKAGES[@]}"; do
-            pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$BASE_URL/$ARCH-$pkg"
+            pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$ARCH-$PKG-any.pkg.tar.zst"
           done
-      - name: Install Packages (MSYS2)
-        if: ${{ matrix.target == 'msys2' }}
-        shell: msys2 {0}
-        run: |
-          pacman -S --noconfirm pactoys
-          pacboy -S --noconfirm 7zip:p toolchain:p cmake:p ccache:p qt6-base:p qt6-multimedia:p qt6-multimedia-wmf:p qt6-tools:p \
-            qt6-translations:p dlfcn:p doxygen:p graphviz:p robin-map:p pulseaudio:p jack2:p portaudio:p
       - name: External Dependency Fixes
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
