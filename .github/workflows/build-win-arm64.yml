@@ -140,6 +140,7 @@ jobs:
         shell: pwsh
         run: |
           cd C:\vcpkg
+          git pull
           git checkout 5087d22fd76fe1844ca492866055dea3c34e7f52
           .\bootstrap-vcpkg.bat -disableMetrics
       - name: Force vcpkg ARM64 Build Type (MSVC)
@@ -247,7 +248,7 @@ jobs:
             "svt-av1-2.3.0-2"
             "ffmpeg-7.1.1-1"
           )
-          for pkg in "${PACKAGES[@]}"; do
+          for PKG in "${PACKAGES[@]}"; do
             pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$ARCH-$PKG-any.pkg.tar.zst"
           done
       - name: External Dependency Fixes
