@@ -124,6 +124,32 @@ jobs:
           cd utilities
           curl -LO https://github.com/tordona/win-arm64-binaries/releases/download/rcedit/rcedit-v2.0-win-arm64.7z
           7z x *.7z
+      - name: Determine Build Script
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        shell: bash
+        run: |
+          if [ -f "./.ci/windows.sh" ]; then
+            echo "BUILD_SCRIPT=./.ci/windows.sh" >> "$GITHUB_ENV"
+          elif [ -f "./.ci/win-msvc.sh" ]; then
+            echo "BUILD_SCRIPT=./.ci/win-msvc.sh" >> "$GITHUB_ENV"
+          else
+            echo "Error: No matching build script found."
+            exit 1
+          fi
+      - name: External Dependency Fixes
+        if: ${{ matrix.target == 'msys2' }}
+        shell: msys2 {0}
+        working-directory: ./${{ steps.reference-name.outputs.name }}
+        run: |
+          if [[ -f "./externals/cryptopp/src/hash/sha_simd.cpp" 
+              && -f "../externals/cryptopp/src/hash/sha_simd.cpp" ]]; then
+                # release 2126.0-alpha2 and greater
+                cp -r ../externals/cryptopp ./externals
+          fi
+          if [[ -f "./externals/libressl/crypto/crypto_internal.h" ]]; then
+                # release 2127.0-alpha1 and greater
+                cp -r ../externals/libressl ./externals
+          fi
       - name: Setup MSVC
         if: ${{ matrix.target == 'msvc' }}
         uses: ilammy/msvc-dev-cmd@v1
@@ -171,18 +197,6 @@ jobs:
           cd .\build\externals\qt
           wget https://github.com/miurahr/aqtinstall/releases/download/v3.3.0/aqt.exe -O aqt.exe
           .\aqt.exe install-qt windows_arm64 desktop $version win64_msvc2022_arm64 --modules qtmultimedia --base https://download.qt.io
-      - name: Determine Build Script
-        working-directory: ./${{ steps.reference-name.outputs.name }}
-        shell: bash
-        run: |
-          if [ -f "./.ci/windows.sh" ]; then
-            echo "BUILD_SCRIPT=./.ci/windows.sh" >> "$GITHUB_ENV"
-          elif [ -f "./.ci/win-msvc.sh" ]; then
-            echo "BUILD_SCRIPT=./.ci/win-msvc.sh" >> "$GITHUB_ENV"
-          else
-            echo "Error: No matching build script found."
-            exit 1
-          fi
       - name: Build (MSVC)
         if: ${{ matrix.target == 'msvc' }}
         working-directory: ./${{ steps.reference-name.outputs.name }}
@@ -251,20 +265,6 @@ jobs:
           for PKG in "${PACKAGES[@]}"; do
             pacman -U --disable-download-timeout --overwrite '*' --noconfirm "$ARCH-$PKG-any.pkg.tar.zst"
           done
-      - name: External Dependency Fixes
-        if: ${{ matrix.target == 'msys2' }}
-        shell: msys2 {0}
-        working-directory: ./${{ steps.reference-name.outputs.name }}
-        run: |
-          if [[ -f "./externals/cryptopp/src/hash/sha_simd.cpp" 
-              && -f "../externals/cryptopp/src/hash/sha_simd.cpp" ]]; then
-                # release 2126.0-alpha2 and greater
-                cp -r ../externals/cryptopp ./externals
-          fi
-          if [[ -f "./externals/libressl/crypto/crypto_internal.h" ]]; then
-                # release 2127.0-alpha1 and greater
-                cp -r ../externals/libressl ./externals
-          fi
       - name: Build (MSYS2)
         if: ${{ matrix.target == 'msys2' }}
         shell: msys2 {0}
@@ -355,7 +355,7 @@ jobs:
         with:
           categories: 'artifacts'
           tools: 'antimalware'
-      - name: Upload scan results to Security tab
+      - name: Upload Scan Results to Security Tab
         uses: github/codeql-action/upload-sarif@v3
         if: steps.pack.conclusion == 'success'
         with:
