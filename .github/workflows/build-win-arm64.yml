@@ -77,6 +77,17 @@ jobs:
           fi
           echo "run=$allow_build_run" >> $GITHUB_OUTPUT
           echo "draft=$is_draft" >> $GITHUB_OUTPUT
+  keep-cache:
+    name: Keep vcpkg Cache Warm
+    needs: ['build-tag']
+    if: github.event_name == 'schedule' && needs.build-tag.outputs.run != 'true'
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: C:\vcpkg-cache
+          key: vcpkg-arm64-${{ env.ImageVersion }}-${{ hashFiles('vcpkg/overlay-ports/**') }}
   windows-arm:
     name: Windows ARM64
     needs: ['build-tag']
@@ -106,7 +117,6 @@ jobs:
           $basename="azahar-unified-source-${{ needs.build-tag.outputs.github_tag }}"
           echo "name=$basename" >> $env:GITHUB_OUTPUT
       - name: Checkout Local Repo with Dependency Patches
-        if: ${{ matrix.target == 'msys2' }}
         uses: actions/checkout@v4
       - name: Download Unified Source
         shell: pwsh
@@ -152,7 +162,7 @@ jobs:
           fi
       - name: Setup MSVC
         if: ${{ matrix.target == 'msvc' }}
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: TheMrMilchmann/setup-msvc-dev@v4
         with:
           arch: arm64
       - name: Install Extra Tools (MSVC)
@@ -166,7 +176,6 @@ jobs:
         shell: pwsh
         run: |
           cd C:\vcpkg
-          git pull
           git checkout 5087d22fd76fe1844ca492866055dea3c34e7f52
           .\bootstrap-vcpkg.bat -disableMetrics
       - name: Force vcpkg ARM64 Build Type (MSVC)
@@ -175,9 +184,23 @@ jobs:
         run: |
           # needed to force vcpkg to build only the arm64 release configuration
           Add-Content -Path "C:\vcpkg\triplets\arm64-windows.cmake" -Value "`nset(VCPKG_BUILD_TYPE release)"
+      - name: Cache vcpkg Binaries (MSVC)
+        if: ${{ matrix.target == 'msvc' }}
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg-cache
+          key: vcpkg-arm64-${{ env.ImageVersion }}-${{ hashFiles('vcpkg/overlay-ports/**') }}
+          restore-keys: |
+            vcpkg-arm64-${{ env.ImageVersion }}-
+            vcpkg-arm64-
       - name: Install FFmpeg (MSVC)
         if: ${{ matrix.target == 'msvc' }}
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,C:/vcpkg-cache,readwrite"
+          VCPKG_OVERLAY_PORTS: "${{ github.workspace }}/vcpkg/overlay-ports"
         run: |
+          Get-ChildItem "${{ github.workspace }}\vcpkg\overlay-ports\dav1d"
           vcpkg install ffmpeg[avcodec,avfilter,avformat,swresample,aom,dav1d,mp3lame,opus,snappy,soxr,theora,vorbis,vpx,vulkan,x264,x265]:arm64-windows
       - name: Install Vulkan SDK (MSVC)
         if: ${{ matrix.target == 'msvc' }}
