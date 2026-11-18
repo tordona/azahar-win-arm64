@@ -148,7 +148,7 @@ jobs:
           fi
       - name: External Dependency Fixes
         if: ${{ matrix.target == 'msys2' }}
-        shell: msys2 {0}
+        shell: bash
         working-directory: ./${{ steps.reference-name.outputs.name }}
         run: |
           if [[ -f "./externals/cryptopp/src/hash/sha_simd.cpp" 
